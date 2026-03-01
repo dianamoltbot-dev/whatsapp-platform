@@ -30,6 +30,19 @@ export class AuthController {
     }
   }
 
+  async refresh(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { refreshToken } = req.body;
+      if (!refreshToken) {
+        return next(new AppError('Refresh token required', 400));
+      }
+      const result = await authService.refresh(refreshToken);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async me(req: Request, res: Response, next: NextFunction) {
     try {
       const { prisma } = await import('../config/database');

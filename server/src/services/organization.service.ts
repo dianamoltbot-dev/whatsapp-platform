@@ -11,6 +11,7 @@ interface UpdateOrgInput {
   name?: string;
   slug?: string;
   isActive?: boolean;
+  plan?: string;
 }
 
 export class OrganizationService {

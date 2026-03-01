@@ -9,6 +9,7 @@ export const updateOrganizationSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),
   isActive: z.boolean().optional(),
+  plan: z.enum(['trial', 'pro', 'canceled', 'expired', 'past_due']).optional(),
 });
 
 export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>;
