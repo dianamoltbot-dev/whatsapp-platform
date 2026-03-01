@@ -19,26 +19,8 @@ setInterval(() => {
 }, 30 * 60 * 1000);
 
 export class AuthService {
-  async register(input: RegisterInput) {
-    const existing = await prisma.user.findUnique({ where: { email: input.email } });
-    if (existing) {
-      throw new AppError('Email already registered', 409);
-    }
-
-    const passwordHash = await bcrypt.hash(input.password, 12);
-    const user = await prisma.user.create({
-      data: {
-        email: input.email,
-        passwordHash,
-        name: input.name,
-        role: 'ADMIN',
-      },
-      select: { id: true, email: true, name: true, role: true, createdAt: true },
-    });
-
-    const accessToken = this.generateAccessToken(user.id, user.email, user.role);
-    const refreshToken = this.generateRefreshToken(user.id, user.email, user.role);
-    return { user, token: accessToken, refreshToken };
+  async register(_input: RegisterInput) {
+    throw new AppError('Registration is disabled. Contact your administrator.', 403);
   }
 
   async login(input: LoginInput) {
