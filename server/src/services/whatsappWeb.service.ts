@@ -116,7 +116,7 @@ class WhatsAppWebService {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, undefined as any),
       },
-      printQRInTerminal: true,
+      printQRInTerminal: false,
       generateHighQualityLinkPreview: false,
       defaultQueryTimeoutMs: 60000,
     });
