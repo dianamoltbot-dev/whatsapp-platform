@@ -158,10 +158,11 @@ class WhatsAppWebService {
       }
 
       if (connection === 'close') {
-        const shouldReconnect =
-          (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-        console.log(`[WA-Web] Connection closed for ${botConfigId}. Reconnect: ${shouldReconnect}`);
+        console.log(`[WA-Web] Connection closed for ${botConfigId}. Status code: ${statusCode}. Reconnect: ${shouldReconnect}`);
+        console.log(`[WA-Web] Disconnect error:`, lastDisconnect?.error?.message || 'unknown');
 
         session.status = 'disconnected';
         session.qrCode = null;
@@ -425,23 +426,18 @@ class WhatsAppWebService {
   async reconnectSavedSessions(): Promise<void> {
     if (!fs.existsSync(this.authBasePath)) return;
 
+    // Clear ALL old sessions on startup to avoid corrupt reconnect loops
     const dirs = fs.readdirSync(this.authBasePath).filter((d) =>
       fs.statSync(path.join(this.authBasePath, d)).isDirectory()
     );
 
-    for (const botConfigId of dirs) {
-      const authPath = path.join(this.authBasePath, botConfigId);
-      const hasFiles = fs.readdirSync(authPath).length > 0;
-
-      if (hasFiles) {
-        console.log(`[WA-Web] Reconnecting saved session: ${botConfigId}`);
-        try {
-          await this.connect(botConfigId);
-        } catch (err) {
-          console.error(`[WA-Web] Failed to reconnect ${botConfigId}:`, err);
-        }
-      }
+    for (const dir of dirs) {
+      const authPath = path.join(this.authBasePath, dir);
+      console.log(`[WA-Web] Clearing old session on startup: ${dir}`);
+      fs.rmSync(authPath, { recursive: true, force: true });
     }
+
+    console.log('[WA-Web] All old sessions cleared. Users must scan QR to reconnect.');
   }
 }
 
