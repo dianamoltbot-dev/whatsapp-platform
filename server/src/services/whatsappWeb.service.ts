@@ -13,6 +13,18 @@ import { prisma } from '../config/database';
 import { getIO } from '../config/socket';
 import { botPipelineService } from './botPipeline.service';
 
+// Minimal pino-compatible logger for Baileys
+const logger = {
+  level: 'silent' as const,
+  info: (..._args: any[]) => {},
+  debug: (..._args: any[]) => {},
+  warn: (..._args: any[]) => {},
+  error: (...args: any[]) => { console.error('[Baileys]', ...args); },
+  trace: (..._args: any[]) => {},
+  fatal: (...args: any[]) => { console.error('[Baileys FATAL]', ...args); },
+  child: () => logger,
+};
+
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'qr' | 'connected';
 
 interface WebSession {
@@ -114,11 +126,13 @@ class WhatsAppWebService {
     const socket = makeWASocket({
       auth: {
         creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, undefined as any),
+        keys: makeCacheableSignalKeyStore(state.keys, logger as any),
       },
+      logger: logger as any,
       printQRInTerminal: false,
       generateHighQualityLinkPreview: false,
       defaultQueryTimeoutMs: 60000,
+      browser: ['Spark101', 'Chrome', '120.0.0'],
     });
 
     session.socket = socket;
