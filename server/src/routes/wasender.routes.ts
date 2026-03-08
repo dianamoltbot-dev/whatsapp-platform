@@ -1,29 +1,23 @@
 import { Router, Request, Response } from 'express';
 import { wasenderService } from '../services/wasender.service';
 import { env } from '../config/env';
-import * as crypto from 'crypto';
-
 const router = Router();
 
 /**
  * Verify WaSenderAPI webhook signature
+ * Per their docs: compare x-webhook-signature header against WEBHOOK_SECRET
  */
 function verifyWebhookSignature(req: Request): boolean {
   const secret = env.WASENDER_WEBHOOK_SECRET;
-  if (!secret) return true; // Skip verification if no secret configured
+  if (!secret) return true;
 
-  const signature = req.headers['x-webhook-signature'] || req.headers['x-signature'] || '';
+  const signature = req.headers['x-webhook-signature'] || '';
   if (!signature) {
-    console.warn('[WaSender Webhook] No signature header found, allowing (check docs for header name)');
-    return true; // Be permissive initially until we know exact header
+    console.warn('[WaSender Webhook] No x-webhook-signature header, allowing');
+    return true;
   }
 
-  const expectedSig = crypto
-    .createHmac('sha256', secret)
-    .update(JSON.stringify(req.body))
-    .digest('hex');
-
-  return signature === expectedSig;
+  return signature === secret;
 }
 
 /**

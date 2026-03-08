@@ -152,27 +152,50 @@ export class WaSenderService {
    */
   async processWebhook(payload: any): Promise<void> {
     try {
-      // WaSenderAPI webhook payload structure
-      const message = {
-        id: String(payload.id || payload.messageId || `wa_${Date.now()}`),
-        from: String(payload.from || payload.sender || ''),
-        fromName: String(payload.fromName || payload.pushName || payload.senderName || ''),
-        to: String(payload.to || payload.recipient || ''),
-        body: String(payload.body || payload.text || payload.message || ''),
-        type: String(payload.type || 'text'),
-        timestamp: Number(payload.timestamp || Math.floor(Date.now() / 1000)),
-        isGroup: Boolean(payload.isGroup),
-        groupId: String(payload.groupId || ''),
-        groupName: String(payload.groupName || ''),
-      };
+      const event = payload.event || '';
+      const data = payload.data || payload;
 
-      // Skip non-text for now (can extend later)
-      if (message.type !== 'text' || !message.body) {
-        console.log(`[WaSender] Skipping non-text message type: ${message.type}`);
+      console.log(`[WaSender] Event: ${event}`);
+
+      // Handle test webhook
+      if (event === 'webhook.test' || data.test === true) {
+        console.log('[WaSender] Test webhook received successfully ✅');
         return;
       }
 
-      // Skip group messages (can enable later)
+      // Handle session status events
+      if (event === 'session.status') {
+        console.log(`[WaSender] Session status: ${JSON.stringify(data)}`);
+        return;
+      }
+
+      // Only process message events
+      if (event && !event.includes('message') && !event.includes('received')) {
+        console.log(`[WaSender] Ignoring event: ${event}`);
+        return;
+      }
+
+      // Extract message from data — WaSenderAPI nests message info in data
+      const message = {
+        id: String(data.id || data.messageId || data.key?.id || `wa_${Date.now()}`),
+        from: String(data.from || data.sender || data.key?.remoteJid || '').replace('@s.whatsapp.net', ''),
+        fromName: String(data.fromName || data.pushName || data.senderName || data.notifyName || ''),
+        to: String(data.to || data.recipient || ''),
+        body: String(data.body || data.text || data.message?.conversation || data.message?.extendedTextMessage?.text || ''),
+        type: String(data.type || data.messageType || 'text'),
+        timestamp: Number(data.timestamp || data.messageTimestamp || Math.floor(Date.now() / 1000)),
+        isGroup: Boolean(data.isGroup || String(data.from || '').includes('@g.us')),
+        groupId: String(data.groupId || ''),
+        groupName: String(data.groupName || ''),
+      };
+
+      // Skip non-text for now
+      if (!message.body || message.body === 'undefined' || message.body === '') {
+        console.log(`[WaSender] Skipping empty/non-text message type: ${message.type}`);
+        return;
+      }
+
+      // Skip group messages
       if (message.isGroup) {
         console.log(`[WaSender] Skipping group message from ${message.groupName}`);
         return;
