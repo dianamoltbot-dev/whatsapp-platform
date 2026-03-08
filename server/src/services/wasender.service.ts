@@ -182,8 +182,9 @@ export class WaSenderService {
       // Format 2 (messages.received): { key: {}, message: {}, pushName, messageTimestamp }
       // Format 3 (flat): { from, body, ... }
       let msgData = data;
-      if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
-        msgData = data.messages[0];
+      if (data.messages) {
+        // Can be array or single object
+        msgData = Array.isArray(data.messages) ? data.messages[0] : data.messages;
       }
 
       // Skip if fromMe (outgoing messages)
@@ -192,9 +193,14 @@ export class WaSenderService {
         return;
       }
 
-      const remoteJid = String(msgData.from || msgData.key?.remoteJid || '');
+      // senderPn has the real phone number (e.g. "5491125367148@s.whatsapp.net")
+      // remoteJid might be LID format (e.g. "82918756098065@lid")
+      const senderPn = String(msgData.key?.senderPn || msgData.key?.cleanedSenderPn || msgData.senderPn || '');
+      const remoteJid = String(msgData.remoteJid || msgData.from || msgData.key?.remoteJid || '');
+      const phoneSource = senderPn || remoteJid;
+      
       const msgContent = msgData.message || {};
-      const bodyText = msgData.body || msgData.text 
+      const bodyText = msgData.messageBody || msgData.body || msgData.text 
         || msgContent.conversation 
         || msgContent.extendedTextMessage?.text
         || msgContent.imageMessage?.caption
@@ -203,7 +209,7 @@ export class WaSenderService {
 
       const message = {
         id: String(msgData.id || msgData.messageId || msgData.key?.id || `wa_${Date.now()}`),
-        from: remoteJid.replace('@s.whatsapp.net', '').replace('@lid', ''),
+        from: phoneSource.replace('@s.whatsapp.net', '').replace('@lid', ''),
         fromName: String(msgData.fromName || msgData.pushName || msgData.senderName || msgData.notifyName || ''),
         to: String(msgData.to || msgData.recipient || ''),
         body: String(bodyText),
