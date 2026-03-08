@@ -3,7 +3,7 @@ import { prisma } from '../config/database';
 import { getIO } from '../config/socket';
 import { llmService, AiProvider } from './llm.service';
 import { whatsappService, ParsedIncomingMessage } from './whatsapp.service';
-import { whatsappWebService } from './whatsappWeb.service';
+import { wasenderService } from './wasender.service';
 import { conversationService } from './conversation.service';
 import { WhatsAppCredentials } from '../types';
 
@@ -105,13 +105,12 @@ export class BotPipelineService {
   async generateBotResponse(conversationId: string, phoneNumber: string, botConfig: BotConfig) {
     const credentials = getBotCredentials(botConfig);
 
-    // Check if we have any way to send (Cloud API or WhatsApp Web)
-    const webSession = whatsappWebService.getSession(botConfig.id);
+    // Check if we have any way to send (Cloud API or WaSender)
     const hasCloudAPI = !!credentials;
-    const hasWebSession = webSession && webSession.status === 'connected';
+    const hasWaSender = !!wasenderService;
 
-    if (!hasCloudAPI && !hasWebSession) {
-      console.warn('No WhatsApp sending method available (no Cloud API credentials and no Web session)');
+    if (!hasCloudAPI && !hasWaSender) {
+      console.warn('No WhatsApp sending method available');
       return null;
     }
 
@@ -144,12 +143,12 @@ export class BotPipelineService {
       apiKey: botConfig.aiApiKey || null,
     });
 
-    // Send via WhatsApp — Cloud API first, then Web fallback
+    // Send via WhatsApp — Cloud API first, then WaSender fallback
     let waMessageId: string | null = null;
     if (hasCloudAPI) {
       waMessageId = await whatsappService.sendMessage(phoneNumber, aiResult.content, credentials!);
-    } else if (hasWebSession) {
-      waMessageId = await whatsappWebService.sendMessage(botConfig.id, phoneNumber, aiResult.content);
+    } else {
+      waMessageId = await wasenderService.sendText(phoneNumber, aiResult.content);
     }
 
     // Store bot response
@@ -197,16 +196,12 @@ export class BotPipelineService {
         content,
         credentials
       );
-    } else if (conversation.botConfig) {
-      // Try WhatsApp Web connection
-      const webSession = whatsappWebService.getSession(conversation.botConfig.id);
-      if (webSession && webSession.status === 'connected') {
-        waMessageId = await whatsappWebService.sendMessage(
-          conversation.botConfig.id,
-          conversation.client.phoneNumber,
-          content
-        );
-      }
+    } else {
+      // Fallback to WaSender
+      waMessageId = await wasenderService.sendText(
+        conversation.client.phoneNumber,
+        content
+      );
     }
 
     // Store agent message

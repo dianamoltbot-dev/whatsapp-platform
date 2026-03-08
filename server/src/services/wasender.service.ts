@@ -184,7 +184,7 @@ export class WaSenderService {
 
       // Find active bot config for this organization
       // For now, use the first active bot config
-      const botConfig = await prisma.botConfig.findFirst({
+      const botConfig = await (prisma.botConfig as any).findFirst({
         where: { isActive: true },
         include: { organization: true },
       });
