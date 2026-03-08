@@ -35,6 +35,7 @@ interface WaSenderWebhookMessage {
 
 export class WaSenderService {
   private apiKey: string;
+  private processedMessages: Set<string> = new Set();
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || env.WASENDER_API_KEY || '';
@@ -221,6 +222,18 @@ export class WaSenderService {
       };
 
       console.log(`[WaSender] Parsed message — from: ${message.from}, body: "${message.body.substring(0, 100)}", name: ${message.fromName}`);
+
+      // Deduplicate — skip if already processed this message ID
+      if (this.processedMessages.has(message.id)) {
+        console.log(`[WaSender] Duplicate message ${message.id}, skipping (in-memory)`);
+        return;
+      }
+      this.processedMessages.add(message.id);
+      // Clean old entries every 1000 messages
+      if (this.processedMessages.size > 1000) {
+        const entries = Array.from(this.processedMessages);
+        this.processedMessages = new Set(entries.slice(-500));
+      }
 
       // Skip non-text for now
       if (!message.body || message.body === 'undefined' || message.body === '') {
