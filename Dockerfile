@@ -30,7 +30,7 @@ RUN npm run build -w client
 # ---- Production stage ----
 FROM node:20-slim AS production
 
-# Install OpenSSL and CA certificates (required for Baileys WebSocket + Prisma)
+# Install OpenSSL and CA certificates (required for Prisma)
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -54,9 +54,6 @@ COPY --from=builder /app/client/dist/ client/dist/
 
 # Copy seed file for initial setup
 COPY server/prisma/seed.ts server/prisma/seed.ts
-
-# WhatsApp sessions directory
-RUN mkdir -p /app/.wa-sessions
 
 ENV NODE_ENV=production
 ENV PORT=3001

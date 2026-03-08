@@ -16,7 +16,7 @@ import botConfigRoutes from './routes/botConfig.routes';
 import organizationRoutes from './routes/organization.routes';
 import exportRoutes from './routes/export.routes';
 import rebillRoutes from './routes/rebill.routes';
-import whatsappWebRoutes from './routes/whatsappWeb.routes';
+import wasenderRoutes from './routes/wasender.routes';
 
 const app = express();
 
@@ -65,7 +65,7 @@ app.use('/api/bot-configs', botConfigRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/rebill', rebillRoutes);
-app.use('/api/wa-web', whatsappWebRoutes);
+app.use('/api/wasender', wasenderRoutes);
 
 // Serve static client files in production
 if (env.NODE_ENV === 'production') {

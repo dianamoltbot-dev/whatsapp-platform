@@ -15,6 +15,8 @@ const envSchema = z.object({
   REBILL_API_KEY: z.string().optional(),
   REBILL_PLAN_ID: z.string().optional(),
   APP_URL: z.string().default('http://localhost:5173'),
+  WASENDER_API_KEY: z.string().optional().default(''),
+  WASENDER_WEBHOOK_SECRET: z.string().optional().default(''),
 });
 
 const parsed = envSchema.safeParse(process.env);
