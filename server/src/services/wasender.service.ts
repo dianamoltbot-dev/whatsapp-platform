@@ -156,6 +156,7 @@ export class WaSenderService {
       const data = payload.data || payload;
 
       console.log(`[WaSender] Event: ${event}`);
+      console.log(`[WaSender] FULL PAYLOAD: ${JSON.stringify(payload).substring(0, 2000)}`);
 
       // Handle test webhook
       if (event === 'webhook.test' || data.test === true) {
@@ -169,25 +170,51 @@ export class WaSenderService {
         return;
       }
 
-      // Only process message events
-      if (event && !event.includes('message') && !event.includes('received')) {
+      // Only process incoming message events
+      const incomingEvents = ['messages.received', 'messages-personal.received', 'messages-group.received', 'messages.upsert'];
+      if (event && !incomingEvents.includes(event)) {
         console.log(`[WaSender] Ignoring event: ${event}`);
         return;
       }
 
-      // Extract message from data — WaSenderAPI nests message info in data
+      // Extract message from data — handle multiple WaSenderAPI payload formats
+      // Format 1 (messages.upsert): { messages: [{ key: {}, message: {}, pushName, messageTimestamp }] }
+      // Format 2 (messages.received): { key: {}, message: {}, pushName, messageTimestamp }
+      // Format 3 (flat): { from, body, ... }
+      let msgData = data;
+      if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+        msgData = data.messages[0];
+      }
+
+      // Skip if fromMe (outgoing messages)
+      if (msgData.key?.fromMe === true) {
+        console.log('[WaSender] Skipping outgoing message (fromMe)');
+        return;
+      }
+
+      const remoteJid = String(msgData.from || msgData.key?.remoteJid || '');
+      const msgContent = msgData.message || {};
+      const bodyText = msgData.body || msgData.text 
+        || msgContent.conversation 
+        || msgContent.extendedTextMessage?.text
+        || msgContent.imageMessage?.caption
+        || msgContent.videoMessage?.caption
+        || '';
+
       const message = {
-        id: String(data.id || data.messageId || data.key?.id || `wa_${Date.now()}`),
-        from: String(data.from || data.sender || data.key?.remoteJid || '').replace('@s.whatsapp.net', ''),
-        fromName: String(data.fromName || data.pushName || data.senderName || data.notifyName || ''),
-        to: String(data.to || data.recipient || ''),
-        body: String(data.body || data.text || data.message?.conversation || data.message?.extendedTextMessage?.text || ''),
-        type: String(data.type || data.messageType || 'text'),
-        timestamp: Number(data.timestamp || data.messageTimestamp || Math.floor(Date.now() / 1000)),
-        isGroup: Boolean(data.isGroup || String(data.from || '').includes('@g.us')),
-        groupId: String(data.groupId || ''),
-        groupName: String(data.groupName || ''),
+        id: String(msgData.id || msgData.messageId || msgData.key?.id || `wa_${Date.now()}`),
+        from: remoteJid.replace('@s.whatsapp.net', '').replace('@lid', ''),
+        fromName: String(msgData.fromName || msgData.pushName || msgData.senderName || msgData.notifyName || ''),
+        to: String(msgData.to || msgData.recipient || ''),
+        body: String(bodyText),
+        type: String(msgData.type || msgData.messageType || 'text'),
+        timestamp: Number(msgData.timestamp || msgData.messageTimestamp || Math.floor(Date.now() / 1000)),
+        isGroup: Boolean(msgData.isGroup || remoteJid.includes('@g.us')),
+        groupId: String(msgData.groupId || ''),
+        groupName: String(msgData.groupName || ''),
       };
+
+      console.log(`[WaSender] Parsed message — from: ${message.from}, body: "${message.body.substring(0, 100)}", name: ${message.fromName}`);
 
       // Skip non-text for now
       if (!message.body || message.body === 'undefined' || message.body === '') {
